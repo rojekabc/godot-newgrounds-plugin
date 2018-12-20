@@ -7,9 +7,12 @@ export(String) var applicationId
 
 signal ng_request_complete
 
-var Gateway
-var ScoreBoard
 var App
+var Event
+var Gateway
+var Loader
+var Medal
+var ScoreBoard
 
 var session_id
 
@@ -21,6 +24,9 @@ func _ready():
 	Gateway = ComponentGateway.new(self)
 	ScoreBoard = ComponentScoreBoard.new(self)
 	App = ComponentApp.new(self)
+	Event = ComponentEvent.new(self)
+	Loader = ComponentLoader.new(self)
+	Medal = ComponentLoader.new(self)
 	
 	if OS.get_name() == 'HTML5':
 		session_id = JavaScript.eval('var urlParams = new URLSearchParams(window.location.search); urlParams.get("ngio_session_id")', true)
@@ -76,6 +82,57 @@ func _request_completed(result, response_code, headers, body):
 	var response = jsonBody.result.result.data
 	emit_signal('ng_request_complete', {'response': response, 'error': null})
 	pass
+
+class ComponentLoader:
+	const NAME = 'Loader'
+	var api
+	func _init(_api):
+		api = _api
+	
+	func loadAuthorUrl(host, redirect=false):
+		api._call_ng_api(NAME, 'loadAuthorUrl', null, {'host' : host, 'redirect' : redirect})
+		pass
+		
+	func loadMoreGames(host, redirect=false):
+		api._call_ng_api(NAME, 'loadMoreGames', null, {'host' : host, 'redirect' : redirect})
+		pass
+		
+	func loadNewgrounds(host, redirect=false):
+		api._call_ng_api(NAME, 'loadNewgrounds', null, {'host' : host, 'redirect' : redirect})
+		pass
+		
+	func loadOfficialUrl(host, redirect=false):
+		api._call_ng_api(NAME, 'loadOfficialUrl', null, {'host' : host, 'redirect' : redirect})
+		pass
+		
+	func loadReferral(host, referral_name, redirect=false):
+		api._call_ng_api(NAME, 'loadReferral', null, {'host' : host, 'referral_name' : referral_name, 'redirect' : redirect})
+		pass
+
+class ComponentMedal:
+	const NAME = 'Medal'
+	var api
+	func _init(_api):
+		api = _api
+		
+	func getList():
+		api._call_ng_api(NAME, 'loadOfficialUrl', null)
+		pass
+	
+	func unlock(medalId, sessionId=api.session_id):
+		api._call_ng_api(NAME, 'unlock', sessionId, {'id' : medalId})
+		pass
+
+class ComponentEvent:
+	const NAME = 'Event'
+	var api
+	func _init(_api):
+		api = _api
+		
+	func logEvent(host, event_name):
+		api._call_ng_api(NAME, 'logEvent', null, {'host' : host, 'event_name' : event_name})
+		pass
+		
 
 class ComponentApp:
 	const NAME = 'App'
@@ -133,4 +190,16 @@ class ComponentScoreBoard:
 		api = _api
 	func getBoards():
 		api._call_ng_api(NAME, 'getBoards')
+		pass
+	
+	func getScores(scoreId, sessionId=api.session_id, limit=10, skip=0, social=false, tag=null, period=null, userId=null):
+		api._call_ng_api(NAME, 'getScores', sessionId,
+			{
+				'id' : scoreId, 'limit': limit, 'skip': skip, 'social': social, 'tag': tag,
+			 	'period': period, 'userId': userId
+			})
+		pass
+
+	func postScore(value, scoreId, sessionId=api.session_id, tag=null):
+		api._call_ng_api(NAME, 'postScore', sessionId, {'value' : value, 'id': scoreId, 'tag': tag})
 		pass
