@@ -26,7 +26,7 @@ func _ready():
 	App = ComponentApp.new(self)
 	Event = ComponentEvent.new(self)
 	Loader = ComponentLoader.new(self)
-	Medal = ComponentLoader.new(self)
+	Medal = ComponentMedal.new(self)
 	
 	if OS.get_name() == 'HTML5':
 		session_id = JavaScript.eval('var urlParams = new URLSearchParams(window.location.search); urlParams.get("ngio_session_id")', true)
@@ -116,7 +116,7 @@ class ComponentMedal:
 		api = _api
 		
 	func getList():
-		api._call_ng_api(NAME, 'loadOfficialUrl', null)
+		api._call_ng_api(NAME, 'getList', null)
 		pass
 	
 	func unlock(medalId, sessionId=api.session_id):
