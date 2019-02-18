@@ -17,7 +17,7 @@ This plugin is created to communicate with [New Grounds](https://www.newgrounds.
 ## On side of Godot project (v 3.0.6)
 1. Download plugin to Godot
    * Download this whole project or git clone.
-   * In your project create folder _addons/ng_api_plugin_
+   * To your project copy whole _addons_ folder, which contains _addons/newgrounds_
    * Move all files from this project to this directory
 1. Configure Godot project
    * Choose _Project/Project Settings_ from the menu

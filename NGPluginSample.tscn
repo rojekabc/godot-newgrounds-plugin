@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://addons/newgrounds/NewGroundsAPI.gd" type="Script" id=1]
+[ext_resource path="res://addons/newgrounds/ng16.png" type="Texture" id=2]
+
+[node name="NGPluginSample" type="Node" index="0"]
+
+[node name="NewGroundsAPI" type="HTTPRequest" parent="." index="0"]
+
+download_file = ""
+use_threads = false
+body_size_limit = -1
+max_redirects = 8
+script = ExtResource( 1 )
+__meta__ = {
+"_editor_icon": ExtResource( 2 )
+}
+verbose = null
+applicationId = null
+
+
