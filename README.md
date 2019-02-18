@@ -70,3 +70,10 @@ Anyway - I use communication via **HTTPS**. It means, that whole communication i
 Yes. This flag should be disabled for HTML5. If you force to turn it on, you'll have a supprise with communication error.
 In the fact, godot engine enables also _blocking mode_ in internally used _HttpClient_ for _HTTPRequest_.
 And this produce error for HTML5, which doesn't allow to use _blocking mode_.
+
+## Plugin version changes
+
+Plugin version | Changes
+--- | ---
+1.0.0 | Initial version plugin. Uses NG v3 API.
+1.0.1 | Fix naming mistake.
