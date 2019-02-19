@@ -1,11 +1,15 @@
 # Godot NewGrounds Plugin
-This plugin is created to communicate with [New Grounds](https://www.newgrounds.com) API in version 3 Beta.
+The plugin is created to communicate with [New Grounds](https://www.newgrounds.com) API in version 3 Beta.
+This repository contains two elements:
+* the plugin - located in folder _addons_
+* the sample usage project
 
 # Features
 * newgrounds.io API in version v3
-* communication via https
+* communication via HTTPS (HTTP with SSL tunnel)
 * API to all described [components](http://www.newgrounds.io/help/components/)
 * Allow to use as a Godot node
+* Sample Godot project to present how to use plugin
 
 # How to use it
 ## On side of NewGrounds
@@ -58,6 +62,10 @@ Application Id | Set up your application Id. It is used to communication with Ne
 Verbose | When enabled print out request and response bodies from communication between plugin and NewGrounds. The payload is in JSON format.
 Use Threads | This setting is ok, if you have application exported not as HTML5. It's automatically disabled by plugin for HTML5.
 
+# Sample Godot project
+The project may be imported to Godot editor. It is fully prepared to use NewGrounds plugin. NewGrounds for any call needs _ApplicationId_.
+For put scores or achieve medals session with logged in user is needed. To user log in the passport URL provided by NewGrounds is used.
+NewGrounds _ApplicationId_ and _SessionId_ are stored in save file on user space.
 
 # Some open points
 ## Encryption
