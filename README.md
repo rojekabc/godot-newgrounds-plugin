@@ -1,11 +1,15 @@
 # Godot NewGrounds Plugin
-This plugin is created to communicate with [New Grounds](https://www.newgrounds.com) API in version 3 Beta.
+The plugin is created to communicate with [New Grounds](https://www.newgrounds.com) API in version 3 Beta.
+This repository contains two elements:
+* the plugin - located in folder _addons_
+* the sample Godot project
 
 # Features
 * newgrounds.io API in version v3
-* communication via https
+* communication via HTTPS (HTTP with SSL tunnel)
 * API to all described [components](http://www.newgrounds.io/help/components/)
 * Allow to use as a Godot node
+* Sample Godot project to present how to use plugin
 
 # How to use it
 ## On side of NewGrounds
@@ -17,7 +21,7 @@ This plugin is created to communicate with [New Grounds](https://www.newgrounds.
 ## On side of Godot project (v 3.0.6)
 1. Download plugin to Godot
    * Download this whole project or git clone.
-   * In your project create folder _addons/ng_api_plugin_
+   * To your project copy whole _addons_ folder, which contains _addons/newgrounds_
    * Move all files from this project to this directory
 1. Configure Godot project
    * Choose _Project/Project Settings_ from the menu
@@ -32,7 +36,7 @@ This plugin is created to communicate with [New Grounds](https://www.newgrounds.
 ```
 	$NewGroundsAPI.Gateway.getDatetime()
 	result = yield($NewGroundsAPI, 'ng_request_complete')
-	if result.error == null:
+	if $NewGroundsAPI.is_ok(result):
 		print('Datetime: ' + str(result.response.datetime))
 	else:
 		print('Error: ' + result.error)
@@ -44,6 +48,7 @@ And in same way there're called functions. But there can be another argues order
 So, if you want call _getDatetime_ from _Gateway_ component - do it as in the sample.
 After the request is done you application may keep the work. So, you have to _yield_ for signal _ng\_request\_complete_.
 When signal is emited from plugin it contains a collected information from response or error, if such occures.
+
 The result contains only two fields
 * _error_ - null, if everything is ok or string message with problem
 * _result_ - this contains exactly the structure from _result.data_, which is a part of JSON response from NewGrounds API.
@@ -57,6 +62,10 @@ Application Id | Set up your application Id. It is used to communication with Ne
 Verbose | When enabled print out request and response bodies from communication between plugin and NewGrounds. The payload is in JSON format.
 Use Threads | This setting is ok, if you have application exported not as HTML5. It's automatically disabled by plugin for HTML5.
 
+# Sample Godot project
+The project may be imported to Godot editor. It is fully prepared to use NewGrounds plugin. NewGrounds for any call needs _ApplicationId_.
+For put scores or achieve medals session with logged in user is needed. To log in a user, the passport URL provided by NewGrounds is used.
+NewGrounds _ApplicationId_ and _SessionId_ are stored in save file on user space.
 
 # Some open points
 ## Encryption
@@ -77,3 +86,4 @@ Plugin version | Changes
 --- | ---
 1.0.0 | Initial version plugin. Uses NG v3 API.
 1.0.1 | Fix naming mistake.
+1.1.0 | Create sample usage project.

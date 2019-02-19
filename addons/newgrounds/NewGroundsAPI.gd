@@ -16,6 +16,9 @@ var ScoreBoard
 
 var session_id
 
+func is_ok(ngResult):
+	return ngResult != null and ngResult.error == null
+
 func _ready():
 	use_threads = OS.get_name() != "HTML5"
 	
@@ -30,8 +33,8 @@ func _ready():
 	
 	if OS.get_name() == 'HTML5':
 		session_id = JavaScript.eval('var urlParams = new URLSearchParams(window.location.search); urlParams.get("ngio_session_id")', true)
-		print('Session id: ' + str(session_id))
-		print('Location hostname: ' + str(JavaScript.eval('location.hostname')))
+		_verbose('Session id: ' + str(session_id))
+		_verbose('Location hostname: ' + str(JavaScript.eval('location.hostname')))
 	pass
 
 func _call_ng_api(component, function, _session_id=null, parameters=null, debug=null, echo=null):
@@ -40,7 +43,8 @@ func _call_ng_api(component, function, _session_id=null, parameters=null, debug=
 	]
 	var requestData = {}
 	
-	requestData.app_id = applicationId
+	if applicationId:
+		requestData.app_id = applicationId
 	if debug:
 		requestData.debug = true
 	if session_id:
@@ -50,8 +54,7 @@ func _call_ng_api(component, function, _session_id=null, parameters=null, debug=
 	requestData.call.parameters = parameters
 	
 	var requestJson = JSON.print(requestData)
-	if verbose:
-		print(requestJson)
+	_verbose(requestJson)
 	var requestResult = request(NEW_GROUNDS_API_URL, headers, true, HTTPClient.METHOD_POST, 'input=' + requestJson.percent_encode())
 	if requestResult != OK:
 		emit_signal('ng_request_complete', {'error': 'Request result = ' + str(requestResult)})
@@ -59,9 +62,7 @@ func _call_ng_api(component, function, _session_id=null, parameters=null, debug=
 	
 func _request_completed(result, response_code, headers, body):
 	var responseBody = body.get_string_from_utf8()
-	if verbose:
-		print('Response code: ' + str(response_code))
-		print('Response body: ' + responseBody)
+	_verbose(responseBody)
 	if result != OK:
 		emit_signal('ng_request_complete', {'error': 'Response result = ' + str(result)})
 		return
@@ -82,6 +83,10 @@ func _request_completed(result, response_code, headers, body):
 	var response = jsonBody.result.result.data
 	emit_signal('ng_request_complete', {'response': response, 'error': null})
 	pass
+
+func _verbose(msg):
+	if verbose:
+		print('[NG Plugin] ' + msg)
 
 class ComponentLoader:
 	const NAME = 'Loader'
@@ -115,8 +120,8 @@ class ComponentMedal:
 	func _init(_api):
 		api = _api
 		
-	func getList():
-		api._call_ng_api(NAME, 'getList', null)
+	func getList(sessionId=api.session_id):
+		api._call_ng_api(NAME, 'getList', sessionId)
 		pass
 	
 	func unlock(medalId, sessionId=api.session_id):
@@ -186,8 +191,10 @@ class ComponentGateway:
 class ComponentScoreBoard:
 	const NAME = 'ScoreBoard'
 	var api
+	
 	func _init(_api):
 		api = _api
+	
 	func getBoards():
 		api._call_ng_api(NAME, 'getBoards')
 		pass

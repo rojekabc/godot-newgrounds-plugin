@@ -1,3 +1,7 @@
 # Vim
 *~
 .*.un~
+
+# Godot
+.import/
+*.import
