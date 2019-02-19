@@ -16,6 +16,9 @@ var ScoreBoard
 
 var session_id
 
+func is_ok(ngResult):
+	return ngResult != null and ngResult.error == null
+
 func _ready():
 	use_threads = OS.get_name() != "HTML5"
 	
@@ -40,7 +43,8 @@ func _call_ng_api(component, function, _session_id=null, parameters=null, debug=
 	]
 	var requestData = {}
 	
-	requestData.app_id = applicationId
+	if applicationId:
+		requestData.app_id = applicationId
 	if debug:
 		requestData.debug = true
 	if session_id:
@@ -116,8 +120,8 @@ class ComponentMedal:
 	func _init(_api):
 		api = _api
 		
-	func getList():
-		api._call_ng_api(NAME, 'getList', null)
+	func getList(sessionId=api.session_id):
+		api._call_ng_api(NAME, 'getList', sessionId)
 		pass
 	
 	func unlock(medalId, sessionId=api.session_id):
@@ -187,8 +191,10 @@ class ComponentGateway:
 class ComponentScoreBoard:
 	const NAME = 'ScoreBoard'
 	var api
+	
 	func _init(_api):
 		api = _api
+	
 	func getBoards():
 		api._call_ng_api(NAME, 'getBoards')
 		pass

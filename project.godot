@@ -11,6 +11,7 @@ config_version=3
 [application]
 
 config/name="Godot NewGrounds API Plugin"
+run/main_scene="res://NGPluginSample.tscn"
 config/icon="res://icon.png"
 
 [editor_plugins]
