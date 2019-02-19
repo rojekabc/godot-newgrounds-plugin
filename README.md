@@ -91,4 +91,4 @@ Plugin version | Changes
 # Licenses
 Resource | Homepage | License
 --- | --- | ---
-Font _grundschrift_ | [https://fontlibrary.org/pl/font/grundschrift](Grundschrift) | [https://creativecommons.org/licenses/by/3.0/](CC-BY 3.0)
+Font _grundschrift_ | [Grundschrift](https://fontlibrary.org/pl/font/grundschrift) |  [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0)
