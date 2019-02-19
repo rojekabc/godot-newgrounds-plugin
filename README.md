@@ -64,7 +64,7 @@ Use Threads | This setting is ok, if you have application exported not as HTML5.
 
 # Sample Godot project
 The project may be imported to Godot editor. It is fully prepared to use NewGrounds plugin. NewGrounds for any call needs _ApplicationId_.
-For put scores or achieve medals session with logged in user is needed. To user log in the passport URL provided by NewGrounds is used.
+For put scores or achieve medals session with logged in user is needed. To log in a user, the passport URL provided by NewGrounds is used.
 NewGrounds _ApplicationId_ and _SessionId_ are stored in save file on user space.
 
 # Some open points
