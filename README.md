@@ -2,7 +2,7 @@
 The plugin is created to communicate with [New Grounds](https://www.newgrounds.com) API in version 3 Beta.
 This repository contains two elements:
 * the plugin - located in folder _addons_
-* the sample usage project
+* the sample Godot project
 
 # Features
 * newgrounds.io API in version v3
