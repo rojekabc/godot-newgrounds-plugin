@@ -32,7 +32,7 @@ This plugin is created to communicate with [New Grounds](https://www.newgrounds.
 ```
 	$NewGroundsAPI.Gateway.getDatetime()
 	result = yield($NewGroundsAPI, 'ng_request_complete')
-	if result.error == null:
+	if $NewGroundsAPI.is_ok(result):
 		print('Datetime: ' + str(result.response.datetime))
 	else:
 		print('Error: ' + result.error)
@@ -44,6 +44,7 @@ And in same way there're called functions. But there can be another argues order
 So, if you want call _getDatetime_ from _Gateway_ component - do it as in the sample.
 After the request is done you application may keep the work. So, you have to _yield_ for signal _ng\_request\_complete_.
 When signal is emited from plugin it contains a collected information from response or error, if such occures.
+
 The result contains only two fields
 * _error_ - null, if everything is ok or string message with problem
 * _result_ - this contains exactly the structure from _result.data_, which is a part of JSON response from NewGrounds API.
@@ -77,3 +78,4 @@ Plugin version | Changes
 --- | ---
 1.0.0 | Initial version plugin. Uses NG v3 API.
 1.0.1 | Fix naming mistake.
+1.1.0 | Create sample usage project.
