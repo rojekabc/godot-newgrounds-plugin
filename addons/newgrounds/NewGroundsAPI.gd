@@ -203,7 +203,7 @@ class ComponentScoreBoard:
 		api._call_ng_api(NAME, 'getScores', sessionId,
 			{
 				'id' : scoreId, 'limit': limit, 'skip': skip, 'social': social, 'tag': tag,
-			 	'period': period, 'userId': userId
+				'period': period, 'userId': userId
 			})
 		pass
 
