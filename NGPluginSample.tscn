@@ -6,1356 +6,359 @@
 [ext_resource path="res://resources/TitleStyle.tres" type="StyleBox" id=4]
 [ext_resource path="res://resources/TitleFont.tres" type="DynamicFont" id=5]
 [ext_resource path="res://resources/LabelFont.tres" type="DynamicFont" id=6]
+[ext_resource path="res://NGPluginSample.gd" type="Script" id=7]
 
-[sub_resource type="GDScript" id=1]
+[node name="NGPluginSample" type="Node"]
+script = ExtResource( 7 )
 
-resource_name = "NGPluginSample"
-script/source = "extends Node
-
-const SAVE_FILE_NAME = \"user://ngsettings.save\"
-
-var passportUrl = null
-var saveFile = File.new()
-var saveData = {
-		applicationId = null,
-		sessionId = null
-	}
-
-
-func _ready():
-	if saveFile.file_exists(SAVE_FILE_NAME):
-		saveFile.open(SAVE_FILE_NAME, File.READ)
-		var saveData = saveFile.get_var() # Dictionary
-		saveFile.close()
-		$NewGroundsAPI.session_id = saveData.sessionId
-		$NewGroundsAPI.applicationId = saveData.applicationId
-		if saveData.sessionId and saveData.sessionId.length() > 0:
-			$UI/Application/Container/Session.text = 'Session: To Check'
-		$UI/Settings/Container/ApplicationId/Value.text = saveData.applicationId
-	
-	$UI/Gateway/Container/Version/Button.connect('pressed', self, '_gateway_get_version')
-	$UI/Gateway/Container/Ping/Button.connect('pressed', self, '_gateway_ping')
-	$UI/Gateway/Container/Datetime/Button.connect('pressed', self, '_gateway_get_datetime')
-	$UI/Settings/Container/ApplicationId/Value.connect('text_changed', self, '_settings_applicationid_changed')
-	$UI/Medal/Container/Button.connect('pressed', self, '_medal_get_list')
-	$UI/Application/Container/SessionAction/Start.connect('pressed', self, '_application_session_start')
-	$UI/Application/Container/SessionAction/Check.connect('pressed', self, '_application_session_check')
-	$UI/Application/Container/SessionAction/End.connect('pressed', self, '_application_session_end')
-	$UI/Application/Container/Login.connect('pressed', self, '_passport_login')
-	$UI/Scores/Container/GetScores.connect('pressed', self, '_scores_get_scores')
-	$UI/Scores/Container/GetBoards.connect('pressed', self, '_scores_get_boards')
-	$UI/Scores/Container/AddScore.connect('pressed', self, '_scores_add_score')
-	pass
-
-func _write_save_file():
-	var error = saveFile.open(SAVE_FILE_NAME, File.WRITE)
-	if error == OK:
-		saveData.sessionId = $NewGroundsAPI.session_id
-		saveData.applicationId = $NewGroundsAPI.applicationId
-		saveFile.store_var(saveData)
-		saveFile.close()
-	else:
-		print('Fail save file')
-	pass
-	
-func _scores_get_boards():
-	$UI/Status/Label.text = ''
-	$UI/Scores/Container/Scores/ItemList.clear()
-	$UI/Scores/Container/Boards/ItemList.clear()
-	$NewGroundsAPI.ScoreBoard.getBoards()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		var idx = 0
-		for board in result.response.scoreboards:
-			$UI/Scores/Container/Boards/ItemList.add_item('[' + str(board.id) + '] ' + board.name)
-			$UI/Scores/Container/Boards/ItemList.set_item_metadata(idx, board.id)
-			idx += 1
-	else:
-		$UI/Status/Label.text = result.error
-	pass
-
-func _scores_get_scores():
-	$UI/Status/Label.text = ''
-	$UI/Scores/Container/Scores/ItemList.clear()
-	
-	var items = $UI/Scores/Container/Boards/ItemList.get_selected_items()
-	var boardId = null
-	if items.size() > 0:
-		boardId = $UI/Scores/Container/Boards/ItemList.get_item_metadata(items[0])
-	
-	$NewGroundsAPI.ScoreBoard.getScores(boardId)
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		for score in result.response.scores:
-			$UI/Scores/Container/Scores/ItemList.add_item(str(score.value) + ' - ' + score.user.name)
-		pass
-	else:
-		$UI/Status/Label.text = result.error
-	pass
-	
-func _scores_add_score():
-	var items = $UI/Scores/Container/Boards/ItemList.get_selected_items()
-	var boardId = null
-	if items.size() > 0:
-		boardId = $UI/Scores/Container/Boards/ItemList.get_item_metadata(items[0])
-	$NewGroundsAPI.ScoreBoard.postScore($UI/Scores/Container/Score/Value.text, boardId)
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if not $NewGroundsAPI.is_ok(result):
-		$UI/Status/Label.text = result.error
-	pass
-	
-func _passport_login():
-	OS.shell_open(passportUrl)
-	passportUrl = null
-	$UI/Application/Container/Login.disabled = true
-	$UI/Status/Label.text = 'Go and login via browser to connect user with session'
-	pass
-
-func _application_session_start():
-	$UI/Status/Label.text = ''
-	$NewGroundsAPI.App.startSession()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		$NewGroundsAPI.session_id = result.response.session.id
-		passportUrl = result.response.session.passport_url
-		$UI/Application/Container/Login.disabled = false
-		
-		if result.response.session.expired:
-			$UI/Application/Container/Session.text = 'Session: Expired'
-		else:
-			$UI/Application/Container/Session.text = 'Session: Valid'
-			_write_save_file()
-		
-		if result.response.session.user:
-			$UI/Application/Container/User.text = 'User: ' + result.response.session.user.name + '[' + result.response.session.user.id + ']'
-		else:
-			$UI/Application/Container/User.text = 'User: '
-	else:
-		$UI/Status/Label.text = result.error
-		$UI/Application/Container/Session.text = 'Session: None'
-		$UI/Application/Container/User.text = 'User: '
-	pass
-	
-func _application_session_check():
-	$UI/Status/Label.text = ''
-	$NewGroundsAPI.App.checkSession()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		if result.response.session.expired:
-			$UI/Application/Container/Session.text = 'Session: Expired'
-		else:
-			$UI/Application/Container/Session.text = 'Session: Valid'
-		if result.response.session.user:
-			$UI/Application/Container/User.text = 'User: ' + result.response.session.user.name + ' [' + str(result.response.session.user.id) + ']'
-		else:
-			$UI/Application/Container/User.text = 'User: '
-	else:
-		$NewGroundsAPI.session_id = ''
-		$UI/Status/Label.text = result.error
-		passportUrl = null
-		$UI/Application/Container/Login.disabled = true
-		$UI/Application/Container/Session.text = 'Session: None'
-		$UI/Application/Container/User.text = 'User: '
-
-	pass
-
-func _application_session_end():
-	$UI/Status/Label.text = ''
-	$NewGroundsAPI.App.endSession()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		$NewGroundsAPI.session_id = ''
-		passportUrl = null
-		$UI/Application/Container/Login.disabled = true
-	else:
-		$UI/Status/Label.text = result.error
-	$UI/Application/Container/Session.text = 'Session: None'
-	$UI/Application/Container/User.text = 'User: '
-	_write_save_file()
-	pass
-
-func _medal_get_list():
-	$UI/Status/Label.text = ''
-	for child in $UI/Medal/Container/List/Container.get_children():
-		$UI/Medal/Container/List/Container.remove_child(child)
-	$NewGroundsAPI.Medal.getList()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		for medal in result.response.medals:
-			var medalCheck = CheckBox.new()
-			medalCheck.text = medal.name
-			medalCheck.pressed = medal.unlocked
-			medalCheck.connect('toggled', self, '_medal_togled', [medal.id, medalCheck])
-			$UI/Medal/Container/List/Container.add_child(medalCheck)
-	else:
-		$UI/Status/Label.text = result.error
-
-func _medal_togled(toggled, medalId, medalCheck):
-	$UI/Status/Label.text = ''
-	if toggled:
-		$NewGroundsAPI.Medal.unlock(medalId)
-		var result = yield($NewGroundsAPI, 'ng_request_complete')
-		if $NewGroundsAPI.is_ok(result):
-			medalCheck.pressed = true
-		else:
-			medalCheck.pressed = false
-			$UI/Status/Label.text = result.error
-	pass
-
-func _settings_applicationid_changed(text):
-	$NewGroundsAPI.applicationId = text
-	_write_save_file()
-
-func _gateway_get_version():
-	$UI/Status/Label.text = ''
-	$UI/Gateway/Container/Version/Result.text = ''
-	$NewGroundsAPI.Gateway.getVersion()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		$UI/Gateway/Container/Version/Result.text = result.response.version
-	else:
-		$UI/Status/Label.text = result.error
-	pass
-	
-func _gateway_get_datetime():
-	$UI/Status/Label.text = ''
-	$UI/Gateway/Container/Datetime/Result.text = ''
-	$NewGroundsAPI.Gateway.getDatetime()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		$UI/Gateway/Container/Datetime/Result.text = result.response.datetime
-	else:
-		$UI/Status/Label.text = result.error
-	pass
-	
-func _gateway_ping():
-	$UI/Status/Label.text = ''
-	$UI/Gateway/Container/Ping/Result.text = ''
-	$NewGroundsAPI.Gateway.ping()
-	var result = yield($NewGroundsAPI, 'ng_request_complete')
-	if $NewGroundsAPI.is_ok(result):
-		$UI/Gateway/Container/Ping/Result.text = result.response.pong
-	else:
-		$UI/Status/Label.text = result.error
-	pass
-"
-_sections_unfolded = [ "Resource" ]
-
-[node name="NGPluginSample" type="Node" index="0"]
-
-script = SubResource( 1 )
-
-[node name="NewGroundsAPI" type="HTTPRequest" parent="." index="0"]
-
-download_file = ""
-use_threads = false
-body_size_limit = -1
-max_redirects = 8
+[node name="NewGroundsAPI" type="HTTPRequest" parent="."]
 script = ExtResource( 1 )
 __meta__ = {
 "_editor_icon": ExtResource( 2 )
 }
-verbose = false
-applicationId = null
+verbose = true
+debug = true
 
-[node name="UI" type="Container" parent="." index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="UI" type="Container" parent="."]
 margin_right = 1024.0
 margin_bottom = 600.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-_sections_unfolded = [ "Rect" ]
 
-[node name="Gateway" type="PanelContainer" parent="UI" index="0"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Gateway" type="PanelContainer" parent="UI"]
 margin_left = 10.0
 margin_top = 330.0
 margin_right = 320.0
 margin_bottom = 510.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_styles/panel = ExtResource( 3 )
-_sections_unfolded = [ "custom_styles" ]
 __meta__ = {
 "_edit_group_": true
 }
 
-[node name="Container" type="VBoxContainer" parent="UI/Gateway" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Container" type="VBoxContainer" parent="UI/Gateway"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 300.0
 margin_bottom = 170.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Title" type="Label" parent="UI/Gateway/Container" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Title" type="Label" parent="UI/Gateway/Container"]
 margin_right = 290.0
 margin_bottom = 45.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_styles/normal = ExtResource( 4 )
 custom_fonts/font = ExtResource( 5 )
 text = "Gateway"
 align = 1
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts", "custom_styles" ]
 
-[node name="Version" type="HBoxContainer" parent="UI/Gateway/Container" index="1"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Version" type="HBoxContainer" parent="UI/Gateway/Container"]
 margin_top = 49.0
 margin_right = 290.0
 margin_bottom = 82.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Button" type="Button" parent="UI/Gateway/Container/Version" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Button" type="Button" parent="UI/Gateway/Container/Version"]
 margin_right = 100.0
 margin_bottom = 33.0
 rect_min_size = Vector2( 100, 0 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Version"
-flat = false
-align = 1
-_sections_unfolded = [ "Rect" ]
 
-[node name="Result" type="Label" parent="UI/Gateway/Container/Version" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Result" type="Label" parent="UI/Gateway/Container/Version"]
 margin_left = 104.0
 margin_top = 9.0
 margin_right = 290.0
 margin_bottom = 23.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
-size_flags_vertical = 4
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="Datetime" type="HBoxContainer" parent="UI/Gateway/Container" index="2"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Datetime" type="HBoxContainer" parent="UI/Gateway/Container"]
 margin_top = 86.0
 margin_right = 290.0
 margin_bottom = 119.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Button" type="Button" parent="UI/Gateway/Container/Datetime" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Button" type="Button" parent="UI/Gateway/Container/Datetime"]
 margin_right = 100.0
 margin_bottom = 33.0
 rect_min_size = Vector2( 100, 0 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Datetime"
-flat = false
-align = 1
-_sections_unfolded = [ "Rect" ]
 
-[node name="Result" type="Label" parent="UI/Gateway/Container/Datetime" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Result" type="Label" parent="UI/Gateway/Container/Datetime"]
 margin_left = 104.0
 margin_top = 9.0
 margin_right = 290.0
 margin_bottom = 23.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
-size_flags_vertical = 4
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="Ping" type="HBoxContainer" parent="UI/Gateway/Container" index="3"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Ping" type="HBoxContainer" parent="UI/Gateway/Container"]
 margin_top = 123.0
 margin_right = 290.0
 margin_bottom = 156.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Button" type="Button" parent="UI/Gateway/Container/Ping" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Button" type="Button" parent="UI/Gateway/Container/Ping"]
 margin_right = 100.0
 margin_bottom = 33.0
 rect_min_size = Vector2( 100, 0 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Ping"
-flat = false
-align = 1
-_sections_unfolded = [ "Rect" ]
 
-[node name="Result" type="Label" parent="UI/Gateway/Container/Ping" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Result" type="Label" parent="UI/Gateway/Container/Ping"]
 margin_left = 104.0
 margin_top = 9.0
 margin_right = 290.0
 margin_bottom = 23.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
-size_flags_vertical = 4
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="Status" type="PanelContainer" parent="UI" index="1"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Status" type="PanelContainer" parent="UI"]
 margin_left = 10.0
 margin_top = 543.0
 margin_right = 1020.0
 margin_bottom = 590.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_styles/panel = ExtResource( 3 )
-_sections_unfolded = [ "custom_styles" ]
 __meta__ = {
 "_edit_group_": true
 }
 
-[node name="Label" type="Label" parent="UI/Status" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Label" type="Label" parent="UI/Status"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 1000.0
 margin_bottom = 37.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_fonts/font = ExtResource( 6 )
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="Settings" type="PanelContainer" parent="UI" index="2"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Settings" type="PanelContainer" parent="UI"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 320.0
 margin_bottom = 110.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_styles/panel = ExtResource( 3 )
-_sections_unfolded = [ "custom_styles" ]
 __meta__ = {
 "_edit_group_": true
 }
 
-[node name="Container" type="VBoxContainer" parent="UI/Settings" index="0"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Container" type="VBoxContainer" parent="UI/Settings"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 300.0
 margin_bottom = 90.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Label" type="Label" parent="UI/Settings/Container" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Label" type="Label" parent="UI/Settings/Container"]
 margin_right = 290.0
 margin_bottom = 45.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_styles/normal = ExtResource( 4 )
 custom_fonts/font = ExtResource( 5 )
 text = "Settings"
 align = 1
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts", "custom_styles" ]
 
-[node name="ApplicationId" type="HBoxContainer" parent="UI/Settings/Container" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="ApplicationId" type="HBoxContainer" parent="UI/Settings/Container"]
 margin_top = 49.0
 margin_right = 290.0
 margin_bottom = 76.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Label" type="Label" parent="UI/Settings/Container/ApplicationId" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Label" type="Label" parent="UI/Settings/Container/ApplicationId"]
 margin_right = 120.0
 margin_bottom = 27.0
 rect_min_size = Vector2( 120, 0 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_fonts/font = ExtResource( 6 )
 text = "ApplicationId"
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "Rect", "custom_fonts" ]
 
-[node name="Value" type="LineEdit" parent="UI/Settings/Container/ApplicationId" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Value" type="LineEdit" parent="UI/Settings/Container/ApplicationId"]
 margin_left = 124.0
 margin_right = 290.0
 margin_bottom = 27.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 1
 size_flags_horizontal = 3
-size_flags_vertical = 1
-focus_mode = 2
-context_menu_enabled = true
-placeholder_alpha = 0.6
-caret_blink = false
-caret_blink_speed = 0.65
-caret_position = 0
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="Medal" type="PanelContainer" parent="UI" index="3"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Medal" type="PanelContainer" parent="UI"]
 margin_left = 720.0
 margin_top = 10.0
 margin_right = 1020.0
 margin_bottom = 270.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_styles/panel = ExtResource( 3 )
-_sections_unfolded = [ "custom_styles" ]
 __meta__ = {
 "_edit_group_": true
 }
 
-[node name="Container" type="VBoxContainer" parent="UI/Medal" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Container" type="VBoxContainer" parent="UI/Medal"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 290.0
 margin_bottom = 250.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Label" type="Label" parent="UI/Medal/Container" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Label" type="Label" parent="UI/Medal/Container"]
 margin_right = 280.0
 margin_bottom = 45.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_styles/normal = ExtResource( 4 )
 custom_fonts/font = ExtResource( 5 )
 text = "Medals"
 align = 1
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts", "custom_styles" ]
 
-[node name="List" type="ScrollContainer" parent="UI/Medal/Container" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="List" type="ScrollContainer" parent="UI/Medal/Container"]
 margin_top = 49.0
 margin_right = 280.0
 margin_bottom = 199.0
 rect_min_size = Vector2( 0, 150 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = true
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-scroll_horizontal_enabled = true
-scroll_horizontal = 0
-scroll_vertical_enabled = true
-scroll_vertical = 0
-scroll_deadzone = 0
-_sections_unfolded = [ "Rect" ]
 
-[node name="Container" type="VBoxContainer" parent="UI/Medal/Container/List" index="0"]
+[node name="Container" type="VBoxContainer" parent="UI/Medal/Container/List"]
 
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
-
-[node name="Button" type="Button" parent="UI/Medal/Container" index="2"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Button" type="Button" parent="UI/Medal/Container"]
 margin_top = 203.0
 margin_right = 280.0
 margin_bottom = 236.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Get List"
-flat = false
-align = 1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="Application" type="PanelContainer" parent="UI" index="4"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Application" type="PanelContainer" parent="UI"]
 margin_left = 10.0
 margin_top = 120.0
 margin_right = 320.0
 margin_bottom = 321.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_styles/panel = ExtResource( 3 )
-_sections_unfolded = [ "custom_styles" ]
 __meta__ = {
 "_edit_group_": true
 }
 
-[node name="Container" type="VBoxContainer" parent="UI/Application" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Container" type="VBoxContainer" parent="UI/Application"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 300.0
 margin_bottom = 191.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
-_sections_unfolded = [ "Grow Direction", "Rect", "Size Flags" ]
 
-[node name="Title" type="Label" parent="UI/Application/Container" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Title" type="Label" parent="UI/Application/Container"]
 margin_right = 290.0
 margin_bottom = 45.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_styles/normal = ExtResource( 4 )
 custom_fonts/font = ExtResource( 5 )
 text = "Application"
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts", "custom_styles" ]
 
-[node name="Session" type="Label" parent="UI/Application/Container" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Session" type="Label" parent="UI/Application/Container"]
 margin_top = 49.0
 margin_right = 290.0
 margin_bottom = 76.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_fonts/font = ExtResource( 6 )
 text = "Session: None"
 clip_text = true
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="User" type="Label" parent="UI/Application/Container" index="2"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="User" type="Label" parent="UI/Application/Container"]
 margin_top = 80.0
 margin_right = 290.0
 margin_bottom = 107.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_fonts/font = ExtResource( 6 )
 text = "User:"
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="Login" type="Button" parent="UI/Application/Container" index="3"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Login" type="Button" parent="UI/Application/Container"]
 margin_top = 111.0
 margin_right = 290.0
 margin_bottom = 144.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
 disabled = true
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Login"
-flat = false
-align = 1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="SessionAction" type="HBoxContainer" parent="UI/Application/Container" index="4"]
-
-editor/display_folded = true
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="SessionAction" type="HBoxContainer" parent="UI/Application/Container"]
 margin_top = 148.0
 margin_right = 290.0
 margin_bottom = 181.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Start" type="Button" parent="UI/Application/Container/SessionAction" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Start" type="Button" parent="UI/Application/Container/SessionAction"]
 margin_right = 94.0
 margin_bottom = 33.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Start"
-flat = false
-align = 1
-_sections_unfolded = [ "Size Flags", "custom_fonts" ]
 
-[node name="Check" type="Button" parent="UI/Application/Container/SessionAction" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Check" type="Button" parent="UI/Application/Container/SessionAction"]
 margin_left = 98.0
 margin_right = 192.0
 margin_bottom = 33.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Check"
-flat = false
-align = 1
-_sections_unfolded = [ "Size Flags", "custom_fonts" ]
 
-[node name="End" type="Button" parent="UI/Application/Container/SessionAction" index="2"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="End" type="Button" parent="UI/Application/Container/SessionAction"]
 margin_left = 196.0
 margin_right = 290.0
 margin_bottom = 33.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "End"
-flat = false
-align = 1
-_sections_unfolded = [ "Size Flags", "custom_fonts" ]
 
-[node name="Scores" type="PanelContainer" parent="UI" index="5"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Scores" type="PanelContainer" parent="UI"]
 margin_left = 330.0
 margin_top = 10.0
 margin_right = 710.0
 margin_bottom = 475.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_styles/panel = ExtResource( 3 )
-_sections_unfolded = [ "custom_styles" ]
 __meta__ = {
 "_edit_group_": true
 }
 
-[node name="Container" type="VBoxContainer" parent="UI/Scores" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Container" type="VBoxContainer" parent="UI/Scores"]
 margin_left = 10.0
 margin_top = 10.0
 margin_right = 370.0
 margin_bottom = 455.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Title" type="Label" parent="UI/Scores/Container" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Title" type="Label" parent="UI/Scores/Container"]
 margin_right = 360.0
 margin_bottom = 45.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_styles/normal = ExtResource( 4 )
 custom_fonts/font = ExtResource( 5 )
 text = "Scores"
 align = 1
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "custom_fonts", "custom_styles" ]
 
-[node name="Boards" type="ScrollContainer" parent="UI/Scores/Container" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Boards" type="ScrollContainer" parent="UI/Scores/Container"]
 margin_top = 49.0
 margin_right = 360.0
 margin_bottom = 149.0
 rect_min_size = Vector2( 0, 100 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = true
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-scroll_horizontal_enabled = true
-scroll_horizontal = 0
-scroll_vertical_enabled = true
-scroll_vertical = 0
-scroll_deadzone = 0
-_sections_unfolded = [ "Rect" ]
 
-[node name="ItemList" type="ItemList" parent="UI/Scores/Container/Boards" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="ItemList" type="ItemList" parent="UI/Scores/Container/Boards"]
 margin_right = 360.0
 margin_bottom = 100.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = true
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
 size_flags_vertical = 3
-items = [  ]
-select_mode = 0
-allow_reselect = false
-icon_mode = 1
-fixed_icon_size = Vector2( 0, 0 )
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="GetBoards" type="Button" parent="UI/Scores/Container" index="2"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="GetBoards" type="Button" parent="UI/Scores/Container"]
 margin_top = 153.0
 margin_right = 360.0
 margin_bottom = 186.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Get Boards"
-flat = false
-align = 1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="Scores" type="ScrollContainer" parent="UI/Scores/Container" index="3"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Scores" type="ScrollContainer" parent="UI/Scores/Container"]
 margin_top = 190.0
 margin_right = 360.0
 margin_bottom = 340.0
 rect_min_size = Vector2( 0, 150 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = true
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-scroll_horizontal_enabled = true
-scroll_horizontal = 0
-scroll_vertical_enabled = true
-scroll_vertical = 0
-scroll_deadzone = 0
-_sections_unfolded = [ "Rect" ]
 
-[node name="ItemList" type="ItemList" parent="UI/Scores/Container/Scores" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="ItemList" type="ItemList" parent="UI/Scores/Container/Scores"]
 margin_right = 360.0
 margin_bottom = 150.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = true
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
 size_flags_horizontal = 3
 size_flags_vertical = 3
-items = [  ]
-select_mode = 0
-allow_reselect = false
-icon_mode = 1
-fixed_icon_size = Vector2( 0, 0 )
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="GetScores" type="Button" parent="UI/Scores/Container" index="4"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="GetScores" type="Button" parent="UI/Scores/Container"]
 margin_top = 344.0
 margin_right = 360.0
 margin_bottom = 377.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Get Scores"
-flat = false
-align = 1
-_sections_unfolded = [ "custom_fonts" ]
 
-[node name="Score" type="HBoxContainer" parent="UI/Scores/Container" index="5"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Score" type="HBoxContainer" parent="UI/Scores/Container"]
 margin_top = 381.0
 margin_right = 360.0
 margin_bottom = 408.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 1
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
-alignment = 0
 
-[node name="Label" type="Label" parent="UI/Scores/Container/Score" index="0"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Label" type="Label" parent="UI/Scores/Container/Score"]
 margin_right = 80.0
 margin_bottom = 27.0
 rect_min_size = Vector2( 80, 0 )
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-mouse_filter = 2
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 4
 custom_fonts/font = ExtResource( 6 )
 text = "Score"
-percent_visible = 1.0
-lines_skipped = 0
-max_lines_visible = -1
-_sections_unfolded = [ "Rect", "custom_fonts" ]
 
-[node name="Value" type="LineEdit" parent="UI/Scores/Container/Score" index="1"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="Value" type="LineEdit" parent="UI/Scores/Container/Score"]
 margin_left = 84.0
 margin_right = 360.0
 margin_bottom = 27.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 1
 size_flags_horizontal = 3
-size_flags_vertical = 1
-focus_mode = 2
-context_menu_enabled = true
-placeholder_alpha = 0.6
-caret_blink = false
-caret_blink_speed = 0.65
-caret_position = 0
-_sections_unfolded = [ "Size Flags" ]
 
-[node name="AddScore" type="Button" parent="UI/Scores/Container" index="6"]
-
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 0.0
-anchor_bottom = 0.0
+[node name="AddScore" type="Button" parent="UI/Scores/Container"]
 margin_top = 412.0
 margin_right = 360.0
 margin_bottom = 445.0
-rect_pivot_offset = Vector2( 0, 0 )
-rect_clip_content = false
-focus_mode = 2
-mouse_filter = 0
-mouse_default_cursor_shape = 0
-size_flags_horizontal = 1
-size_flags_vertical = 1
 custom_fonts/font = ExtResource( 6 )
-toggle_mode = false
-enabled_focus_mode = 2
-shortcut = null
-group = null
 text = "Add Score"
-flat = false
-align = 1
-_sections_unfolded = [ "custom_fonts" ]
-
-
