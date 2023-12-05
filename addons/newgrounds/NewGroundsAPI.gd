@@ -345,8 +345,7 @@ class ComponentScoreBoard:
 					},
 				sessionId
 				)
-	
-	
+
 	func postScore(value, scoreId, sessionId=api.session_id, tag=null):
 		api._call_ng_api(
 				NAME, 
